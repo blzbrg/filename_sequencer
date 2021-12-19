@@ -16,7 +16,9 @@ fn write_headstate(headstate : &std::path::Path, file : &std::path::Path)
 #[derive(Debug)]
 enum Error {
     Utf8Error(std::str::Utf8Error),
-    FileError(std::io::Error)
+    FileError(std::io::Error),
+    NoFilenameInPathError,
+    OsStrUnicodeError // for OsStr to str
 }
 
 impl From<std::str::Utf8Error> for Error {
@@ -40,21 +42,28 @@ fn read_path_from_file<T: AsRef<std::path::Path>>(file : T) -> Result<std::path:
     Ok(std::path::PathBuf::from(std::path::Path::new(path_str)))
 }
 
+fn path_to_name<'a>(path : &'a std::path::Path) -> Result<&'a str, Error> {
+    let os_name : &std::ffi::OsStr = path.file_name()
+        .ok_or(Error::NoFilenameInPathError)?;
+    os_name.to_str()
+        .ok_or(Error::OsStrUnicodeError)
+}
 
 /// Given the `headstate` path, compute the new name for `file`.
 fn new_name(headstate : &std::path::Path,
             file : &std::path::Path) -> Result<String, Error> {
     // Original name (the one that is being renamed)
-    let orig_name : &str = file.file_name().unwrap().to_str().unwrap();
+    let orig_name : &str = path_to_name(file)?;
 
     // "Head" name
     let headfile = read_path_from_file(headstate)?;
-    let headname : &str = headfile.file_name().unwrap().to_str().unwrap();
+    let headname : &str = path_to_name(&headfile)?;
+
+    // Construct new name
     let base_name : &str = match headname.rsplit_once(".") {
         Some((a, _)) => a,
         None         => headname
     };
-
     Ok(String::from(base_name) + BASE_NAME_ORIG_NAME_SEP + orig_name)
 }
 
@@ -67,7 +76,7 @@ fn main() {
     // Manipulate paths
     let input_file : &std::path::Path = std::path::Path::new(line_buf.trim());
     let headstate_path : std::path::PathBuf = find_headstate(input_file);
-    let parent_path : &std::path::Path = input_file.parent().unwrap();
+    let parent_path : &std::path::Path = input_file.parent().expect("No parent of file");
 
     // Choose action based on first argument
     let key : String = std::env::args().nth(1).expect("Expects a key code as argument");
