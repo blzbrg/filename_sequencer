@@ -93,6 +93,8 @@ fn main() {
             write_headstate(headstate_path.as_ref(), input_file)
                 .expect("Could not write head state");
         },
+        // Bail-out key
+        "q" => {},
         // Reject any other key
         _   => panic!("Unknown key: {}", key)
     }
