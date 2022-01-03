@@ -76,7 +76,10 @@ fn main() {
     // Manipulate paths
     let input_file : &std::path::Path = std::path::Path::new(line_buf.trim());
     let headstate_path : std::path::PathBuf = find_headstate(input_file);
-    let parent_path : &std::path::Path = input_file.parent().expect("No parent of file");
+    let parent_path : &std::path::Path = match input_file.parent() {
+        Some(p) => p,
+        None    => panic!("No parent dir of headstate file {}", headstate_path.display())
+    };
 
     // Choose action based on first argument
     let key : String = std::env::args().nth(1).expect("Expects a key code as argument");
