@@ -15,10 +15,21 @@ fn write_headstate(headstate : &std::path::Path, file : &std::path::Path)
 
 #[derive(Debug)]
 enum Error {
-    Utf8Error(std::str::Utf8Error),
+    Utf8Error(std::str::Utf8Error), // for bytes to str
     FileError(std::io::Error),
-    NoFilenameInPathError,
-    OsStrUnicodeError // for OsStr to str
+    NoFilenameInPathError(std::path::PathBuf), // the path which has no filename
+    OsStrUnicodeError(std::ffi::OsString), // for OsStr to str
+}
+
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+        match self {
+            Error::Utf8Error(e) => write!(f, "Invalid unicode in: {}", e),
+            Error::FileError(e) => write!(f, "Error manipualting file: {}", e),
+            Error::NoFilenameInPathError(p) => write!(f, "No filename in path {:?}", p),
+            Error::OsStrUnicodeError(o) => write!(f, "Invalid unicode in {:?}", o),
+        }
+    }
 }
 
 impl From<std::str::Utf8Error> for Error {
@@ -42,11 +53,15 @@ fn read_path_from_file<T: AsRef<std::path::Path>>(file : T) -> Result<std::path:
     Ok(std::path::PathBuf::from(std::path::Path::new(path_str)))
 }
 
+/// Extract the filename from a path, converting any errors to our error format.
+///
+/// This will yield an error if the filename is not valid unicode, or if there is no filename in the
+/// path.
 fn path_to_name<'a>(path : &'a std::path::Path) -> Result<&'a str, Error> {
     let os_name : &std::ffi::OsStr = path.file_name()
-        .ok_or(Error::NoFilenameInPathError)?;
+        .ok_or(Error::NoFilenameInPathError(path.to_path_buf()))?;
     os_name.to_str()
-        .ok_or(Error::OsStrUnicodeError)
+        .ok_or(Error::OsStrUnicodeError(os_name.to_os_string()))
 }
 
 /// Given the `headstate` path, compute the new name for `file`.
