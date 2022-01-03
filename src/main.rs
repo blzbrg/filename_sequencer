@@ -6,9 +6,9 @@ fn find_headstate<T: AsRef<std::path::Path>>(base_path : T) -> std::path::PathBu
 }
 
 fn write_headstate(headstate : &std::path::Path, file : &std::path::Path)
-                   -> Result<(), std::io::Error> {
+                   -> Result<(), Error> {
     let output = file.to_str()
-        .expect("Filepath cannot be converted to string for writing to headstate");
+        .ok_or(Error::PathUnicodeError(file.to_owned()))?;
     std::fs::write(headstate, output)
         .map_err(std::io::Error::into)
 }
@@ -19,6 +19,7 @@ enum Error {
     FileError(std::io::Error),
     NoFilenameInPathError(std::path::PathBuf), // the path which has no filename
     OsStrUnicodeError(std::ffi::OsString), // for OsStr to str
+    PathUnicodeError(std::path::PathBuf), // for Path to str
 }
 
 impl std::fmt::Display for Error {
@@ -28,6 +29,7 @@ impl std::fmt::Display for Error {
             Error::FileError(e) => write!(f, "Error manipualting file: {}", e),
             Error::NoFilenameInPathError(p) => write!(f, "No filename in path {:?}", p),
             Error::OsStrUnicodeError(o) => write!(f, "Invalid unicode in {:?}", o),
+            Error::PathUnicodeError(p) => write!(f, "Invalid unicode in {:?}", p),
         }
     }
 }
@@ -108,8 +110,11 @@ fn main() {
         },
         // Set file as new head
         "r" => {
-            write_headstate(headstate_path.as_ref(), input_file)
-                .expect("Could not write head state");
+            match write_headstate(headstate_path.as_ref(), input_file) {
+                Ok(_) => (),
+                Err(e) => panic!("Could not write {} into {:?}: {}", line_buf,
+                                 headstate_path, e)
+            };
         },
         // Bail-out key
         "q" => {},
