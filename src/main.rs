@@ -97,10 +97,15 @@ fn main() {
     match key.as_ref() {
         // Rename the file based on the head
         "e" => {
-            let end_name : String = new_name(&headstate_path, input_file)
-                .expect("Could not create new name");
+            let end_name : String = match new_name(&headstate_path, input_file) {
+                Ok(n)  => n,
+                Err(e) => panic!("Could not find new name for {:?}: {}", input_file, e)
+            };
             let new_path : std::path::PathBuf = parent_path.with_file_name(end_name);
-            std::fs::rename(input_file, new_path).expect("Failed to move");
+            match std::fs::rename(input_file, &new_path) {
+                Ok(_)  => (),
+                Err(e) => panic!("Could not rename {:?} to {:?}: {}", input_file, new_path, e)
+            }
         },
         // Set file as new head
         "r" => {
