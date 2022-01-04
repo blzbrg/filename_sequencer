@@ -10,13 +10,13 @@ fn write_headstate(headstate : &std::path::Path, file : &std::path::Path)
     let output = file.to_str()
         .ok_or(Error::PathUnicodeError(file.to_owned()))?;
     std::fs::write(headstate, output)
-        .map_err(std::io::Error::into)
+        .map_err(|e| Error::FileError(e, headstate.to_path_buf()))
 }
 
 #[derive(Debug)]
 enum Error {
     BytesUnicodeError(std::str::Utf8Error), // for bytes to str
-    FileError(std::io::Error),
+    FileError(std::io::Error, std::path::PathBuf), // path which operation was attempted on
     NoFilenameInPathError(std::path::PathBuf), // the path which has no filename
     OsStrUnicodeError(std::ffi::OsString), // for OsStr to str
     PathUnicodeError(std::path::PathBuf), // for Path to str
@@ -26,7 +26,7 @@ impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
         match self {
             Error::BytesUnicodeError(e) => write!(f, "Invalid unicode: {}", e),
-            Error::FileError(e) => write!(f, "Error manipualting file: {}", e),
+            Error::FileError(e, p) => write!(f, "Error manipulating file {:?}: {}", p, e),
             Error::NoFilenameInPathError(p) => write!(f, "No filename in path {:?}", p),
             Error::OsStrUnicodeError(o) => write!(f, "Invalid unicode in {:?}", o),
             Error::PathUnicodeError(p) => write!(f, "Invalid unicode in {:?}", p),
@@ -40,16 +40,10 @@ impl From<std::str::Utf8Error> for Error {
     }
 }
 
-impl From<std::io::Error> for Error {
-    fn from(e : std::io::Error) -> Error {
-        Error::FileError(e)
-    }
-}
-
-
 /// Read the entire contents of `file` and attempt to convert them to a PathBuf.
-fn read_path_from_file<T: AsRef<std::path::Path>>(file : T) -> Result<std::path::PathBuf, Error> {
-    let bytes : std::vec::Vec<u8> = std::fs::read(file)?;
+fn read_path_from_file(file : &std::path::Path) -> Result<std::path::PathBuf, Error> {
+    let bytes : std::vec::Vec<u8> = std::fs::read(file)
+        .map_err(|e| Error::FileError(e, file.to_path_buf()))?;
     let path_str : &str = std::str::from_utf8(bytes.as_slice())?;
     // Make and return an owned path
     Ok(std::path::PathBuf::from(std::path::Path::new(path_str)))
