@@ -15,7 +15,7 @@ fn write_headstate(headstate : &std::path::Path, file : &std::path::Path)
 
 #[derive(Debug)]
 enum Error {
-    Utf8Error(std::str::Utf8Error), // for bytes to str
+    BytesUnicodeError(std::str::Utf8Error), // for bytes to str
     FileError(std::io::Error),
     NoFilenameInPathError(std::path::PathBuf), // the path which has no filename
     OsStrUnicodeError(std::ffi::OsString), // for OsStr to str
@@ -25,7 +25,7 @@ enum Error {
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
         match self {
-            Error::Utf8Error(e) => write!(f, "Invalid unicode in: {}", e),
+            Error::BytesUnicodeError(e) => write!(f, "Invalid unicode: {}", e),
             Error::FileError(e) => write!(f, "Error manipualting file: {}", e),
             Error::NoFilenameInPathError(p) => write!(f, "No filename in path {:?}", p),
             Error::OsStrUnicodeError(o) => write!(f, "Invalid unicode in {:?}", o),
@@ -36,7 +36,7 @@ impl std::fmt::Display for Error {
 
 impl From<std::str::Utf8Error> for Error {
     fn from(e : std::str::Utf8Error) -> Error {
-        Error::Utf8Error(e)
+        Error::BytesUnicodeError(e)
     }
 }
 
