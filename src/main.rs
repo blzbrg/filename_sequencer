@@ -1,3 +1,5 @@
+use std::io::Write; // to use write! on stdout
+
 static HEADFILE_NAME : &str = "fname_seq_head";
 static BASE_NAME_ORIG_NAME_SEP : &str = "_";
 
@@ -90,6 +92,9 @@ fn main() {
         None    => panic!("No parent dir of path {} received on stdin", headstate_path.display())
     };
 
+    // Make stdout
+    let mut stdout : std::io::Stdout = std::io::stdout();
+
     // Choose action based on first argument
     let key : String = std::env::args().nth(1).expect("Expects a key code as argument");
     match key.as_ref() {
@@ -101,14 +106,17 @@ fn main() {
             };
             let new_path : std::path::PathBuf = parent_path.with_file_name(end_name);
             match std::fs::rename(input_file, &new_path) {
-                Ok(_)  => (),
+                Ok(_)  => {write!(stdout, "Renamed {} to {}\n",
+                                   input_file.display(), new_path.display())
+                           .expect("Could not write to stdout")},
                 Err(e) => panic!("Could not rename {:?} to {:?}: {}", input_file, new_path, e)
             }
         },
         // Set file as new head
         "r" => {
             match write_headstate(headstate_path.as_ref(), input_file) {
-                Ok(_) => (),
+                Ok(_) => {write!(stdout, "Set {} as head\n", input_file.display())
+                          .expect("Cannot write to stdout")},
                 Err(e) => panic!("Could not write {} into {:?}: {}", line_buf,
                                  headstate_path, e)
             };
