@@ -81,15 +81,18 @@ fn new_name(headstate : &std::path::Path,
 fn main() {
     // Get first line from stdin
     let mut line_buf = String::new();
-    let _ = std::io::stdin().read_line(&mut line_buf)
-        .expect("Expects a file path on stdin");
+    match std::io::stdin().read_line(&mut line_buf) {
+        Ok(_)  => (),
+        Err(e) => panic!("Tried to read a line on stdin, but instead got \"{}\": {}",
+                         line_buf, e)
+    };
 
     // Manipulate paths
     let input_file : &std::path::Path = std::path::Path::new(line_buf.trim());
     let headstate_path : std::path::PathBuf = find_headstate(input_file);
     let parent_path : &std::path::Path = match input_file.parent() {
         Some(p) => p,
-        None    => panic!("No parent dir of headstate file {}", headstate_path.display())
+        None    => panic!("No parent dir of path {} received on stdin", headstate_path.display())
     };
 
     // Choose action based on first argument
