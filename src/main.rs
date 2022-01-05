@@ -34,17 +34,12 @@ impl std::fmt::Display for Error {
     }
 }
 
-impl From<std::str::Utf8Error> for Error {
-    fn from(e : std::str::Utf8Error) -> Error {
-        Error::BytesUnicodeError(e)
-    }
-}
-
 /// Read the entire contents of `file` and attempt to convert them to a PathBuf.
 fn read_path_from_file(file : &std::path::Path) -> Result<std::path::PathBuf, Error> {
     let bytes : std::vec::Vec<u8> = std::fs::read(file)
         .map_err(|e| Error::FileError(e, file.to_path_buf()))?;
-    let path_str : &str = std::str::from_utf8(bytes.as_slice())?;
+    let path_str : &str = std::str::from_utf8(bytes.as_slice())
+        .map_err(Error::BytesUnicodeError)?;
     // Make and return an owned path
     Ok(std::path::PathBuf::from(std::path::Path::new(path_str)))
 }
