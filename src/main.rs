@@ -15,6 +15,18 @@ fn write_headstate(headstate : &std::path::Path, file : &std::path::Path)
         .map_err(|e| Error::FileError(e, headstate.to_path_buf()))
 }
 
+fn new_head_name(file : &std::path::Path) -> Result<String, Error> {
+    let name = path_to_name(file)?;
+    let (base_name, maybe_ext) = split_name(name);
+    let mut new_name = String::from(base_name) + BASE_NAME_ORIG_NAME_SEP + base_name;
+    match maybe_ext {
+        Some(ext) => {new_name.push_str(".");
+                      new_name.push_str(ext);},
+        None      => {},
+    };
+    Ok(new_name)
+}
+
 #[derive(Debug)]
 enum Error {
     BytesUnicodeError(std::str::Utf8Error), // for bytes to str
@@ -57,6 +69,14 @@ fn path_to_name<'a>(path : &'a std::path::Path) -> Result<&'a str, Error> {
         .ok_or(Error::OsStrUnicodeError(os_name.to_os_string()))
 }
 
+/// Split a filename into a tuple of (basename, optional extension).
+fn split_name<'a>(filename : &'a str) -> (&'a str, Option<&'a str>) {
+    match filename.rsplit_once(".") {
+        Some((base, ext)) => (base, Some(ext)),
+        None              => (filename, None),
+    }
+}
+
 /// Given the `headstate` path, compute the new name for `file`.
 fn new_name(headstate : &std::path::Path,
             file : &std::path::Path) -> Result<String, Error> {
@@ -68,10 +88,7 @@ fn new_name(headstate : &std::path::Path,
     let headname : &str = path_to_name(&headfile)?;
 
     // Construct new name
-    let base_name : &str = match headname.rsplit_once(".") {
-        Some((a, _)) => a,
-        None         => headname
-    };
+    let (base_name, _) = split_name(headname);
     Ok(String::from(base_name) + BASE_NAME_ORIG_NAME_SEP + orig_name)
 }
 
@@ -114,12 +131,27 @@ fn main() {
         },
         // Set file as new head
         "r" => {
+            // Write the head state
             match write_headstate(headstate_path.as_ref(), input_file) {
-                Ok(_) => {write!(stdout, "Set {} as head\n", input_file.display())
-                          .expect("Cannot write to stdout")},
+                Ok(_) => (),
                 Err(e) => panic!("Could not write {} into {:?}: {}", line_buf,
                                  headstate_path, e)
             };
+
+            // Rename the head
+            let name = match new_head_name(input_file) {
+                Ok(s) => s,
+                Err(e) => panic!("Could not find new name for {:?}: {}", input_file, e ),
+            };
+            let new_path = parent_path.join(name);
+
+            match std::fs::rename(input_file, &new_path) {
+                Ok(()) => (),
+                Err(e) => panic!("Could not rename head {:?} to {:?}: {}", input_file, new_path, e),
+            };
+
+            // Informative output
+            println!("Set {:?} as head, renamed to {:?}", input_file, new_path);
         },
         // Bail-out key
         "q" => {},
