@@ -104,7 +104,7 @@ fn main() {
                 Ok(n)  => n,
                 Err(e) => panic!("Could not find new name for {:?}: {}", input_file, e)
             };
-            let new_path : std::path::PathBuf = parent_path.with_file_name(end_name);
+            let new_path : std::path::PathBuf = parent_path.join(end_name);
             match std::fs::rename(input_file, &new_path) {
                 Ok(_)  => {write!(stdout, "Renamed {} to {}\n",
                                    input_file.display(), new_path.display())
